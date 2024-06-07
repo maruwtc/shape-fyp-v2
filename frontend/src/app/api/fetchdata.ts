@@ -29,7 +29,31 @@ export const fetchIP = async () => {
 export const startJNDI = async () => {
     try {
         const response = await axios.get(config.api_server + '/startjndi');
-        return { message: JSON.stringify(response.data.jndi).replaceAll('"', ''), error: null };
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
+export const stopJNDI = async () => {
+    try {
+        const response = await axios.get(config.api_server + '/stopjndi');
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
+export const checkJNDI = async () => {
+    try {
+        const response = await axios.get(config.api_server + '/checkjndi');
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
     } catch (error: any) {
         if (error.response) {
             return { message: null, error: error.response.data.error };
@@ -50,10 +74,46 @@ export const startNcat = async () => {
     }
 }
 
+export const stopNcat = async () => {
+    try {
+        const response = await axios.get(config.api_server + '/stopncat');
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
+export const checkNcat = async () => {
+    try {
+        const response = await axios.get(config.api_server + '/checkncat');
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
 export const inputCMD = async (command: string) => {
     try {
         const response = await axios.get(config.api_server + '/inputcmd', { params: { command: command } });
         return { message: JSON.stringify(response.data.output).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
+export const sendPayload = async (payload: string, targetip: string) => {
+    try {
+        const response = await axios.get(config.api_server + '/sendpayload', { params: { payload: payload, targetip: targetip } });
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
     } catch (error: any) {
         if (error.response) {
             return { message: null, error: error.response.data.error };

