@@ -68,7 +68,7 @@ func main() {
 		}
 	})
 	router.GET("/startncat", func(c *gin.Context) {
-		host := c.DefaultQuery("host", "localhost")
+		host := c.DefaultQuery("host", "192.168.78.102")
 		port := c.DefaultQuery("port", "1304")
 		filename := c.DefaultQuery("filename", "")
 		portInt, err := strconv.Atoi(port)
