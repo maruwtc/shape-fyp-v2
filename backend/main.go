@@ -279,8 +279,8 @@ func FindJava() string {
 		switch os {
 		// case "windows":
 		// 	javapath = "./dependencies/jdk-22.0.1-windows/bin/java.exe"
-		// case "linux":
-		// 	javapath = "./dependencies/jdk-22.0.1-linux/bin/java"
+		case "linux":
+			javapath = "./dependencies/jdk_linux/bin/java"
 		// case "darwin":
 		// 	javapath = "./dependencies/jdk-22.0.1-macos/bin/java"
 		default:
