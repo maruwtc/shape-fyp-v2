@@ -238,8 +238,7 @@ func SendPayload(payload string, targetip string) (string, error) {
 	}
 
 	if string(respPayload) == "Hello, World!" {
-		status := "Payload sent successfully"
-		return status, nil
+		return "Payload sent successfully", nil
 	}
 
 	return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
