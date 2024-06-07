@@ -2,6 +2,7 @@
 if command -v java >/dev/null 2>&1; then
     echo "Java is already installed, skipping Java installation."
 else
+    echo "Java is not installed, use dependencies instead."
     sudo chmod +x ./backend/dependencies/jdk_linux/bin/java
 fi
 if command -v node >/dev/null 2>&1; then
