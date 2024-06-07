@@ -70,17 +70,11 @@ func main() {
 	})
 	router.GET("/startncat", func(c *gin.Context) {
 		host := c.Query("host")
-		port, err := strconv.Atoi(c.Query("port"))
-		if host == "" || port == 0 || err != nil {
-			c.JSON(400, gin.H{
-				"error": "Host and Port are required",
-			})
-			return
-		}
 		filename := c.Query("filename")
-		if filename == "" {
+		port, err := strconv.Atoi(c.Query("port"))
+		if host == "" || filename == "" || port == 0 || err != nil {
 			c.JSON(400, gin.H{
-				"error": "Filename is required",
+				"error": "Host, Port and Filename are required",
 			})
 			return
 		}
@@ -346,21 +340,6 @@ func StartNcat(host string, port int, filename string) {
 			}(conn)
 		}
 	}()
-}
-
-func handleRequest(conn net.Conn) {
-	buf := make([]byte, 1024)
-	for {
-		reqLen, err := conn.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				ncatStatus <- "Error reading: " + err.Error()
-			}
-			break
-		}
-		ncatStatus <- string(buf[:reqLen])
-	}
-	conn.Close()
 }
 
 func StopNcat() string {
