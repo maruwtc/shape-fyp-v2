@@ -1,8 +1,8 @@
 #!/bin/sh
-sudo apt-get update && sudo apt-get install -y curl git
 if command -v node >/dev/null 2>&1; then
     echo "Node.js is already installed, skipping Node.js installation."
 else
+    sudo apt-get update && sudo apt-get install -y curl git
     curl -fsSL https://fnm.vercel.app/install | bash
     cat <<EOT >>~/.bashrc
 export FNM_DIR="$HOME/.local/share/fnm"
@@ -14,7 +14,7 @@ EOT
     npm install -g pnpm
 
 fi
-(cd frontend && pnpm install && pnpm next build && pnpm dev >pnpm.log 2>&1) &
+(cd frontend && pnpm install && pnpm dev >pnpm.log 2>&1) &
 if command -v go >/dev/null 2>&1; then
     echo "GoLang is already installed, skipping GoLang installation."
     cd backend && go run main.go
