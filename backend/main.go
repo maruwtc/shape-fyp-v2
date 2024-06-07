@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -310,42 +311,58 @@ func FindJava() string {
 var listener net.Listener
 var ncatStatus = make(chan string, 1)
 
-func StartNcat(host string, port int, filename ...string) {
+func StartNcat(host string, port int, filename string) {
 	if listener != nil {
 		ncatStatus <- "Ncat server is already running"
 		return
 	}
-	addr := fmt.Sprintf("%s:%d", host, port)
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		ncatStatus <- "Error starting Ncat server: " + err.Error()
-		return
-	}
-	listener = l
-	ncatStatus <- "Ncat server started on " + addr
-	for {
-		conn, err := listener.Accept()
+	if filename == "" {
+		addr := fmt.Sprintf("%s:%d", host, port)
+		l, err := net.Listen("tcp", addr)
 		if err != nil {
-			ncatStatus <- "Error accepting connection: " + err.Error()
+			ncatStatus <- "Error starting Ncat server: " + err.Error()
 			return
 		}
-		go handleConn(conn)
+		listener = l
+		ncatStatus <- "Ncat server started on " + addr
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				ncatStatus <- "Error accepting connection: " + err.Error()
+				return
+			}
+			go handleConn(conn)
+		}
+	} else {
+		ncatStatus <- "Ncat server started on " + host + ":" + strconv.Itoa(port) + " with file: " + filename
+		for {
+			conn, err := net.Dial("tcp", host+":"+strconv.Itoa(port))
+			if err != nil {
+				ncatStatus <- "Error connecting to Ncat server: " + err.Error()
+				return
+			}
+			file, err := os.ReadFile(filename)
+			if err != nil {
+				ncatStatus <- "Error reading file: " + err.Error()
+				return
+			}
+			conn.Write(file)
+			conn.Close()
+			time.Sleep(5 * time.Second)
+		}
 	}
 }
 
 func handleConn(conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			return
+		}
+		conn.Write(buf[:n])
 	}
-	command := string(buf[:n])
-	out, err := InputCMD(command)
-	if err != nil {
-		return
-	}
-	conn.Write([]byte(out))
 }
 
 func StopNcat() string {
