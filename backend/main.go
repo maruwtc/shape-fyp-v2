@@ -68,7 +68,8 @@ func main() {
 		}
 	})
 	router.GET("/startncat", func(c *gin.Context) {
-		host := c.DefaultQuery("host", "192.168.78.102")
+		intIP, _ := GetIntIP()
+		host := c.DefaultQuery("host", intIP.String())
 		port := c.DefaultQuery("port", "1304")
 		filename := c.DefaultQuery("filename", "")
 		portInt, err := strconv.Atoi(port)
@@ -317,7 +318,7 @@ func StartNcat(host string, port int, filename string) {
 	}
 	if filename != "" {
 		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
-		exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), "-e", filename).Start()
+		exec.Command("nc", "-w", "3", "-l", host, fmt.Sprintf("%d", port), ">", filename).Start()
 		ncatStatus <- "Ncat server started on " + host + ":" + fmt.Sprintf("%d", port) + " with file: " + filename
 	} else {
 		var err error
