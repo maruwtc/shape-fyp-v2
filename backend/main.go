@@ -69,45 +69,26 @@ func main() {
 		}
 	})
 	router.GET("/startncat", func(c *gin.Context) {
-		host := c.DefaultQuery("host", "localhost")
-		port := c.DefaultQuery("port", "1304")
-		portInt, err := strconv.Atoi(port)
-		if err != nil {
+		host := c.Query("host")
+		port, err := strconv.Atoi(c.Query("port"))
+		if host == "" || port == 0 || err != nil {
 			c.JSON(400, gin.H{
-				"error": "Invalid port",
+				"error": "Host and Port are required",
 			})
 			return
 		}
-		go StartNcat(host, portInt)
+		filename := c.Query("filename")
+		if filename == "" {
+			c.JSON(400, gin.H{
+				"error": "Filename is required",
+			})
+			return
+		}
+		StartNcat(host, port, filename)
 		status := <-ncatStatus
 		c.JSON(200, gin.H{
 			"message": status,
 		})
-	})
-	router.GET("/startncatreceiver", func(c *gin.Context) {
-		file := c.Query("filename")
-		if file == "" {
-			c.JSON(400, gin.H{
-				"error": "File is required",
-			})
-			return
-		} else {
-			host := c.DefaultQuery("host", "localhost")
-			port := c.DefaultQuery("port", "1305")
-			portInt, err := strconv.Atoi(port)
-			if err != nil {
-				c.JSON(400, gin.H{
-					"error": "Invalid port",
-				})
-				return
-			} else {
-				go StartNcatReceiver(host, portInt, file)
-				status := <-ncatStatus
-				c.JSON(200, gin.H{
-					"message": status,
-				})
-			}
-		}
 	})
 	router.GET("/stopncat", func(c *gin.Context) {
 		status := StopNcat()
@@ -334,7 +315,7 @@ func FindJava() string {
 var listener net.Listener
 var ncatStatus = make(chan string, 1) // Buffered channel to hold status messages
 
-func StartNcat(host string, port int) {
+func StartNcat(host string, port int, filename string) {
 	go func() {
 		var err error
 		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
@@ -343,13 +324,26 @@ func StartNcat(host string, port int) {
 			return
 		}
 		ncatStatus <- "Listening on " + host + ":" + strconv.Itoa(port)
+		file, err := os.Open(filename)
+		if err != nil {
+			ncatStatus <- "Error opening file: " + err.Error()
+			return
+		}
+		defer file.Close()
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				ncatStatus <- "Error accepting: " + err.Error()
 				return
 			}
-			go handleRequest(conn)
+			go func(conn net.Conn) {
+				defer conn.Close()
+				_, err := io.Copy(conn, file)
+				if err != nil {
+					ncatStatus <- "Error sending file: " + err.Error()
+					return
+				}
+			}(conn)
 		}
 	}()
 }
@@ -365,51 +359,6 @@ func handleRequest(conn net.Conn) {
 			break
 		}
 		ncatStatus <- string(buf[:reqLen])
-	}
-	conn.Close()
-}
-
-func StartNcatReceiver(host string, port int, filename string) {
-	go func() {
-		var err error
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
-		if err != nil {
-			ncatStatus <- "Error listening: " + err.Error()
-			return
-		}
-		ncatStatus <- "Listening on " + host + ":" + strconv.Itoa(port)
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				ncatStatus <- "Error accepting: " + err.Error()
-				return
-			}
-			go handleRequestReceiver(conn, filename)
-		}
-	}()
-}
-
-func handleRequestReceiver(conn net.Conn, file string) {
-	buf := make([]byte, 1024)
-	f, err := os.Create(file)
-	if err != nil {
-		ncatStatus <- "Error creating file: " + err.Error()
-		return
-	}
-	defer f.Close()
-	for {
-		reqLen, err := conn.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				ncatStatus <- "Error reading: " + err.Error()
-			}
-			break
-		}
-		_, err = f.Write(buf[:reqLen])
-		if err != nil {
-			ncatStatus <- "Error writing to file: " + err.Error()
-			break
-		}
 	}
 	conn.Close()
 }
