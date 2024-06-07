@@ -27,12 +27,25 @@ import {
     stopJNDI,
     stopNcat,
     checkJNDI,
-    checkNcat
+    checkNcat,
+    startNcatReceiver
 } from "@/app/api/fetchdata";
 
 const HomePage = () => {
     const { colorMode } = useColorMode();
-    const [state, setState] = useState({ javaPath: '', error: '', intIP: '', extIP: '', ipError: '', consolelog: '', targetIP: '', command: '', loading: false, payload: '' });
+    const [state, setState] = useState({
+        javaPath: '',
+        error: '',
+        intIP: '',
+        extIP: '',
+        ipError: '',
+        consolelog: '',
+        targetIP: '',
+        command: '',
+        loading: false,
+        payload: '',
+        filename: ''
+    });
     const consoleBoxRef = useRef<HTMLDivElement | null>(null);
     const ipRegex = /^(?:[0-9]{1,3}\.){3}(?!0|255)[0-9]{1,3}$/;
 
@@ -119,6 +132,10 @@ const HomePage = () => {
                 const ncatResult = await startNcat();
                 newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message;
                 break;
+            case 'startNcatReceiver':
+                const ncatReceiverResult = await startNcatReceiver(state.filename);
+                newConsoleLog += ncatReceiverResult.error ? ncatReceiverResult.error : ncatReceiverResult.message;
+                break;
             case 'stopNcat':
                 const stopNcatResult = await stopNcat();
                 newConsoleLog += stopNcatResult.error ? stopNcatResult.error : stopNcatResult.message;
@@ -152,7 +169,20 @@ const HomePage = () => {
                             </Button>
                         </InputRightElement>
                     </InputGroup>
-                    <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setState((prevState) => ({ ...prevState, command: '' }))}>Clear
+                    <InputGroup size='md' mt={4}>
+                        <Input
+                            pr='4.5rem'
+                            placeholder='Filename'
+                            value={state.filename}
+                            onChange={(e) => setState((prevState) => ({ ...prevState, filename: e.target.value }))}
+                        />
+                        <InputRightElement width='4rem'>
+                            <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('startNcatReceiver')}>
+                                Set
+                            </Button>
+                        </InputRightElement>
+                    </InputGroup>
+                    <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => setState((prevState) => ({ ...prevState, command: '', filename: '' }))}>Clear
                     </Button>
                 </Box>
                 <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} my={4}>
