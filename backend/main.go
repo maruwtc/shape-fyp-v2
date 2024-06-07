@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -82,6 +83,31 @@ func main() {
 		c.JSON(200, gin.H{
 			"message": status,
 		})
+	})
+	router.GET("/startncatreceiver", func(c *gin.Context) {
+		file := c.Query("filename")
+		if file == "" {
+			c.JSON(400, gin.H{
+				"error": "File is required",
+			})
+			return
+		} else {
+			host := c.DefaultQuery("host", "localhost")
+			port := c.DefaultQuery("port", "1305")
+			portInt, err := strconv.Atoi(port)
+			if err != nil {
+				c.JSON(400, gin.H{
+					"error": "Invalid port",
+				})
+				return
+			} else {
+				go StartNcatReceiver(host, portInt, file)
+				status := <-ncatStatus
+				c.JSON(200, gin.H{
+					"message": status,
+				})
+			}
+		}
 	})
 	router.GET("/stopncat", func(c *gin.Context) {
 		status := StopNcat()
@@ -198,7 +224,7 @@ func SendPayload(payload string, targetip string) (string, error) {
 		return "", err
 	}
 	if string(respPayload) == "Hello, world!" {
-		return "Payload sent successfully" + "to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
+		return "Payload sent successfully to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
 	} else {
 		return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
 	}
@@ -339,6 +365,51 @@ func handleRequest(conn net.Conn) {
 			break
 		}
 		ncatStatus <- string(buf[:reqLen])
+	}
+	conn.Close()
+}
+
+func StartNcatReceiver(host string, port int, filename string) {
+	go func() {
+		var err error
+		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		if err != nil {
+			ncatStatus <- "Error listening: " + err.Error()
+			return
+		}
+		ncatStatus <- "Listening on " + host + ":" + strconv.Itoa(port)
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				ncatStatus <- "Error accepting: " + err.Error()
+				return
+			}
+			go handleRequestReceiver(conn, filename)
+		}
+	}()
+}
+
+func handleRequestReceiver(conn net.Conn, file string) {
+	buf := make([]byte, 1024)
+	f, err := os.Create(file)
+	if err != nil {
+		ncatStatus <- "Error creating file: " + err.Error()
+		return
+	}
+	defer f.Close()
+	for {
+		reqLen, err := conn.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				ncatStatus <- "Error reading: " + err.Error()
+			}
+			break
+		}
+		_, err = f.Write(buf[:reqLen])
+		if err != nil {
+			ncatStatus <- "Error writing to file: " + err.Error()
+			break
+		}
 	}
 	conn.Close()
 }
