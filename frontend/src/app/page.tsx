@@ -28,7 +28,6 @@ import {
     stopNcat,
     checkJNDI,
     checkNcat,
-    startNcatReceiver
 } from "@/app/api/fetchdata";
 
 const HomePage = () => {
@@ -129,12 +128,11 @@ const HomePage = () => {
                 newConsoleLog += checkJndiResult.error ? checkJndiResult.error : checkJndiResult.message;
                 break;
             case 'startNcat':
-                const ncatResult = await startNcat();
+                const ncatResult = await startNcat(state.filename);
                 newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message;
                 break;
-            case 'startNcatReceiver':
-                const ncatReceiverResult = await startNcatReceiver(state.filename);
-                newConsoleLog += ncatReceiverResult.error ? ncatReceiverResult.error : ncatReceiverResult.message;
+            case 'setNcatFilename':
+                setState((prevState) => ({ ...prevState, filename: state.filename }));
                 break;
             case 'stopNcat':
                 const stopNcatResult = await stopNcat();
@@ -177,7 +175,7 @@ const HomePage = () => {
                             onChange={(e) => setState((prevState) => ({ ...prevState, filename: e.target.value }))}
                         />
                         <InputRightElement width='4rem'>
-                            <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('startNcatReceiver')}>
+                            <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('setNcatFilename')}>
                                 Set
                             </Button>
                         </InputRightElement>

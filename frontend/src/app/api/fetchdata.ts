@@ -62,21 +62,9 @@ export const checkJNDI = async () => {
     }
 }
 
-export const startNcat = async () => {
+export const startNcat = async (filename: any) => {
     try {
-        const response = await axios.get(config.api_server + '/startncat');
-        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
-    } catch (error: any) {
-        if (error.response) {
-            return { message: null, error: error.response.data.error };
-        }
-        return { message: null, error: error.message };
-    }
-}
-
-export const startNcatReceiver = async (filename: any) => {
-    try {
-        const response = await axios.get(config.api_server + '/startncatreceiver', { params: { filename: filename } });
+        const response = await axios.get(config.api_server + '/startncat', { params: { filename: filename } });
         return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
     } catch (error: any) {
         if (error.response) {
