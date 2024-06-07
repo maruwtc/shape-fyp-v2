@@ -1,4 +1,9 @@
 #!/bin/sh
+if command -v java >/dev/null 2>&1; then
+    echo "Java is already installed, skipping Java installation."
+else
+    sudo chmod +x ./backend/dependencies/jdk_linux/bin/java
+fi
 if command -v node >/dev/null 2>&1; then
     echo "Node.js is already installed, skipping Node.js installation."
 else
