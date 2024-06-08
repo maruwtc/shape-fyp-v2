@@ -129,7 +129,7 @@ const HomePage = () => {
                 break;
             case 'startNcat':
                 const ncatResult = await startNcat(state.filename);
-                newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message + state.filename;
+                newConsoleLog += ncatResult.error ? ncatResult.error : ncatResult.message;
                 break;
             case 'stopNcat':
                 const stopNcatResult = await stopNcat();
