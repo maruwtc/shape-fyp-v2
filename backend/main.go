@@ -149,27 +149,29 @@ func main() {
 				"error": "Payload is required",
 			})
 			return
+		} else {
+			out, err := SendPayload(payload, targetip)
+			if err != nil {
+				c.JSON(500, gin.H{
+					"error": err.Error(),
+				})
+				return
+			} else {
+				c.JSON(200, gin.H{
+					"message": out,
+				})
+			}
 		}
-		respPayload, err := SendPayload(payload, targetip)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		c.JSON(200, gin.H{
-			"response_payload": respPayload,
-		})
 	})
 	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
 func SendPayload(payload string, targetip string) (string, error) {
-	// decodedPayload, err := base64.StdEncoding.DecodeString(payload)
-	// if err != nil {
-	// 	return "", err
-	// }
+	decodedPayload, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return "", err
+	}
 	intIP, err := GetIntIP()
 	if err != nil {
 		return "", err
@@ -198,7 +200,11 @@ func SendPayload(payload string, targetip string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(respPayload), nil
+	if string(respPayload) == "Hello, world!" {
+		return "Payload sent successfully to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
+	} else {
+		return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
+	}
 }
 
 // -------------------------- End of Payload Sender -------------------------- //
@@ -312,24 +318,20 @@ func StartNcat(host string, port int, filename string) {
 	}
 	if filename != "" {
 		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
-		exec.Command("nc", "-w", "3", "-l", host, fmt.Sprintf("%d", port), ">", filename).Start()
-		ncatStatus <- "Ncat server started on " + host + ":" + fmt.Sprintf("%d", port) + " with file: " + filename
+		exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename).Start()
 	} else {
-		var err error
-		listener, err = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
-		if err != nil {
-			ncatStatus <- "Error starting Ncat server: " + err.Error()
-			return
-		}
-		ncatStatus <- "Ncat server started on " + host + ":" + fmt.Sprintf("%d", port)
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
+		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
+		go func() {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					return
+				}
+				go handleConn(conn)
 			}
-			go handleConn(conn)
-		}
+		}()
 	}
+	ncatStatus <- "Ncat server started at " + host + ":" + fmt.Sprintf("%d", port)
 }
 
 func handleConn(conn net.Conn) {
