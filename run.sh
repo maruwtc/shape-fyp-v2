@@ -67,15 +67,15 @@ esac
 # Check if Go is installed
 case $(command -v go) in
     "")
-        if find ./backend/dependencies/ -maxdepth 1 -name "go*" >/dev/null 2>&1; then
-            echo "GoLang is already downloaded, skipping GoLang installation."
-            cd backend && ./dependencies/go/bin/go run main.go
-        else
-            echo "GoLang is not installed, download archive instead."
-            curl -O $GO_TAR_URL
-            tar -C ./backend/dependencies/ -xzf $(basename $GO_TAR_URL)
-            cd backend && ./dependencies/go/bin/go run main.go
-        fi
+    if ! command -v go >/dev/null 2>&1 || ! find ./backend/dependencies/ -maxdepth 1 -name "go*" >/dev/null 2>&1; then
+        echo "GoLang is not installed or downloaded, download archive instead."
+        curl -O $GO_TAR_URL
+        tar -C ./backend/dependencies/ -xzf $(basename $GO_TAR_URL)
+        cd backend && ./dependencies/go/bin/go run main.go
+    else
+        echo "GoLang is already installed or downloaded, skipping GoLang installation."
+        cd backend && go run main.go
+    fi
         ;;
     *)
         echo "GoLang is already installed, skipping GoLang installation."
