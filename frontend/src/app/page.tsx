@@ -214,14 +214,13 @@ const HomePage = () => {
                             </Button>
                         ))}
                     </Wrap>
-                    <Wrap spacing={2} mb={4}>
+                    <Wrap spacing={2} my={4}>
                         {[
+                            { label: 'One-click Exploit', type: 'exploit' },
                             { label: 'Export Console Log', type: 'exportReport', onClick: () => exportReport(state.consolelog) },
                             { label: 'Clear All', type: 'clearAll', onClick: () => setState((prevState) => ({ ...prevState, consolelog: '' })) }
                         ].map(({ label, type, onClick }) => (
-                            <Button key={type} size={'sm'} colorScheme={type === 'exportReport' ? 'purple' : 'gray'} variant='outline' onClick={onClick}>
-                                {label}
-                            </Button>
+                            <Button key={type} onClick={onClick} size={'sm'} colorScheme={type === 'exploit' ? 'teal' : type === 'exportReport' ? 'purple' : 'gray'} variant='outline' style={type === 'exploit' ? { boxShadow: "0 0 5px #0bf4f3, 0 0 5px #0bf4f3 inset", transition: "all 0.3s ease", } : {}} _hover={type === 'exploit' ? { boxShadow: "0 0 10px #0bf4f3, 0 0 20px #0bf4f3, 0 0 20px #fff inset", } : {}}>{label}</Button>
                         ))}
                     </Wrap>
                 </Box>

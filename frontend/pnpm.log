@@ -1,0 +1,17 @@
+
+> frontend@0.1.0 dev C:\Users\chriswong\Documents\Repositories\shape-fyp-v2\frontend
+> next dev
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 2.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 3s (3067 modules)
+ GET / 200 in 3637ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 556ms (1599 modules)
+ GET /favicon.ico 200 in 663ms
+ ✓ Compiled in 726ms (3067 modules)
+ ✓ Compiled in 358ms (3067 modules)
