@@ -318,7 +318,8 @@ func StartNcat(host string, port int, filename string) {
 	}
 	if filename != "" {
 		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
-		exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename).Start()
+		cmd := "nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename
+		exec.Command(cmd).Start()
 		go func() {
 			for {
 				conn, err := listener.Accept()
@@ -328,7 +329,7 @@ func StartNcat(host string, port int, filename string) {
 				go handleConn(conn)
 			}
 		}()
-		ncatStatus <- "Ncat server started with output to " + filename
+		ncatStatus <- "Ncat server started with output to " + filename + cmd
 	} else {
 		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
 		go func() {
