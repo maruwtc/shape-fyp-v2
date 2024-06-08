@@ -149,29 +149,27 @@ func main() {
 				"error": "Payload is required",
 			})
 			return
-		} else {
-			out, err := SendPayload(payload, targetip)
-			if err != nil {
-				c.JSON(500, gin.H{
-					"error": err.Error(),
-				})
-				return
-			} else {
-				c.JSON(200, gin.H{
-					"message": out,
-				})
-			}
 		}
+		respPayload, err := SendPayload(payload, targetip)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"response_payload": respPayload,
+		})
 	})
 	router.Run(":8000")
 }
 
 // -------------------------- Start of Payload Sender -------------------------- //
 func SendPayload(payload string, targetip string) (string, error) {
-	decodedPayload, err := base64.StdEncoding.DecodeString(payload)
-	if err != nil {
-		return "", err
-	}
+	// decodedPayload, err := base64.StdEncoding.DecodeString(payload)
+	// if err != nil {
+	// 	return "", err
+	// }
 	intIP, err := GetIntIP()
 	if err != nil {
 		return "", err
@@ -200,11 +198,7 @@ func SendPayload(payload string, targetip string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if string(respPayload) == "Hello, world!" {
-		return "Payload sent successfully to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload, nil
-	} else {
-		return "Payload sent to " + target + " with Decoded-Payload: " + string(decodedPayload) + " and Request-Payload: " + reqPayload + " and Response-Payload: " + string(respPayload), nil
-	}
+	return string(respPayload), nil
 }
 
 // -------------------------- End of Payload Sender -------------------------- //
