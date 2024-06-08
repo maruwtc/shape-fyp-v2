@@ -318,7 +318,7 @@ func StartNcat(host string, port int, filename string) {
 	}
 	if filename != "" {
 		listener, _ = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port))
-		cmd := "nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename
+		cmd := fmt.Sprintf("nc -l -p %d > %s", port, filename)
 		exec.Command(cmd).Start()
 		go func() {
 			for {
