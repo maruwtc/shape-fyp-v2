@@ -26,6 +26,18 @@ export const fetchIP = async () => {
     }
 }
 
+export const testConnection = async (targetip: string) => {
+    try {
+        const response = await axios.get(config.api_server + '/testconnection', { params: { targetip: targetip } });
+        return { message: JSON.stringify(response.data.message).replaceAll('"', ''), error: null };
+    } catch (error: any) {
+        if (error.response) {
+            return { message: null, error: error.response.data.error };
+        }
+        return { message: null, error: error.message };
+    }
+}
+
 export const startJNDI = async () => {
     try {
         const response = await axios.get(config.api_server + '/startjndi');
