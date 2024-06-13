@@ -78,7 +78,7 @@ func main() {
 		}
 	})
 	router.GET("/startncat", func(c *gin.Context) {
-		intIP, _ := functions.GetIntIP() // Assuming GetIntIP is defined and correctly implemented
+		intIP, _ := functions.GetIntIP()
 		host := c.DefaultQuery("host", intIP.String())
 		port := c.DefaultQuery("port", "1304")
 		filename := c.DefaultQuery("filename", "")

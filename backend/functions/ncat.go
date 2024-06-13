@@ -33,7 +33,7 @@ func StartNcat(host string, port int, filename string) {
 			ncatStatus <- "Error starting ncat command: " + err.Error()
 			return
 		}
-		ncatStatus <- "Ncat server started with output to " + filename
+		ncatStatus <- "Ncat server started by command: " + cmd.String() + " at " + address + " and writing to " + filename
 		cmd.Wait()
 	} else {
 		ncatStatus <- "Ncat server started at " + address
