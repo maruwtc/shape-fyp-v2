@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os/exec"
+	"runtime"
 )
 
 var listener net.Listener
@@ -54,14 +55,29 @@ func handleConnection(conn net.Conn) {
 	io.Copy(conn, conn)
 }
 
-func StopNcat() string {
+func StopNcat(port string) string {
 	if listener != nil {
-		err := listener.Close()
-		if err != nil {
-			return "Error closing listener: " + err.Error()
+		// err := listener.Close()
+		// if err != nil {
+		// 	return "Error closing listener: " + err.Error()
+		// }
+		// listener = nil
+		// return "Ncat server stopped"
+		if os := runtime.GOOS; os == "windows" {
+			cmd := exec.Command("taskkill", "/F", "/IM", "ncat.exe")
+			err := cmd.Run()
+			if err != nil {
+				return "Error stopping ncat command: " + err.Error()
+			}
+			return "Ncat server stopped by command: " + cmd.String()
+		} else if os == "linux" {
+			cmd := exec.Command("pkill", "-k", port)
+			err := cmd.Run()
+			if err != nil {
+				return "Error stopping ncat command: " + err.Error()
+			}
+			return "Ncat server stopped by command: " + cmd.String()
 		}
-		listener = nil
-		return "Ncat server stopped"
 	}
 	return "Ncat server is not running"
 }
