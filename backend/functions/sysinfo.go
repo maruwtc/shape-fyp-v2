@@ -58,3 +58,13 @@ func FindJava() string {
 	}
 	return javapath
 }
+
+func TestTargetConnection(targetip string) (string, error) {
+	target := targetip + ":8080"
+	conn, err := net.Dial("tcp", target)
+	if err != nil {
+		return "", err
+	}
+	conn.Close()
+	return "Target is reachable", nil
+}

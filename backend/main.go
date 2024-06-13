@@ -57,6 +57,26 @@ func main() {
 			})
 		}
 	})
+	router.GET("/testconnection", func(c *gin.Context) {
+		targetip := c.Query("targetip")
+		if targetip == "" {
+			c.JSON(400, gin.H{
+				"error": "Target IP is required",
+			})
+			return
+		}
+		status, err := functions.TestTargetConnection(targetip)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+			return
+		} else {
+			c.JSON(200, gin.H{
+				"message": status,
+			})
+		}
+	})
 	router.GET("/startncat", func(c *gin.Context) {
 		intIP, _ := functions.GetIntIP() // Assuming GetIntIP is defined and correctly implemented
 		host := c.DefaultQuery("host", intIP.String())
