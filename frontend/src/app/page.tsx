@@ -12,7 +12,7 @@ import {
     InputLeftAddon,
     Spinner,
     useColorMode,
-    ButtonGroup
+    Flex,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import "@fontsource/jetbrains-mono";
@@ -90,9 +90,6 @@ const HomePage = () => {
         setState((prevState) => ({ ...prevState, loading: true }));
         let newConsoleLog = '';
         switch (type) {
-            case 'test':
-                newConsoleLog += 'Test successful!';
-                break;
             case 'testConnection':
                 const testConnectionResult = await testConnection(state.targetIP);
                 newConsoleLog += testConnectionResult.message ? `${testConnectionResult.message}` : testConnectionResult.error;
@@ -146,32 +143,58 @@ const HomePage = () => {
     return (
         <Box>
             <Box>
-                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} my={4}>
-                    <Text fontSize='xl' fontWeight='bold' ml={1}>Host related</Text>
-                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
-                        <Input
-                            pr='4.5rem'
-                            placeholder='Command'
-                            value={state.command}
-                            onChange={(e) => setState((prevState) => ({ ...prevState, command: e.target.value }))}
-                        />
-                        <InputRightElement width='4rem'>
-                            <Button size='sm' backgroundColor={'transparent'} _hover={{ backgroundColor: 'transparent' }} onClick={() => handleInputButtonClick('inputCommand')}>
-                                Run
-                            </Button>
-                        </InputRightElement>
-                    </InputGroup>
-                    <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
-                        <InputLeftAddon>nc -l -p 1304 &gt; </InputLeftAddon>
-                        <Input
-                            pr='4.5rem'
-                            placeholder='Filename'
-                            value={state.filename}
-                            onChange={(e) => setState((prevState) => ({ ...prevState, filename: e.target.value }))}
-                        />
-                    </InputGroup>
-                </Box>
-                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} my={4}>
+                <Flex direction={{ base: 'column', md: 'row' }} my={4}>
+                    <Box border={'lg'} borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} mr={4} w={{ base: '100%', md: '50%' }}>
+                        <Text fontSize='xl' fontWeight='bold' ml={1}>Host related</Text>
+                        <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
+                            <Input
+                                pr='4.5rem'
+                                placeholder='Command'
+                                value={state.command}
+                                onChange={(e) => setState((prevState) => ({ ...prevState, command: e.target.value }))}
+                            />
+                        </InputGroup>
+                        <Button size='md' variant='outline' onClick={() => handleInputButtonClick('inputCommand')} mt={2} borderRadius={'md'}>Execute Command</Button>
+                        <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
+                            <InputLeftAddon>nc -l -p 1304 &gt; </InputLeftAddon>
+                            <Input
+                                pr='4.5rem'
+                                placeholder='Filename'
+                                value={state.filename}
+                                onChange={(e) => setState((prevState) => ({ ...prevState, filename: e.target.value }))}
+                            />
+                        </InputGroup>
+                    </Box>
+                    <Box border={'lg'} borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} w={{ base: '100%', md: '50%' }} mt={{ base: 4, md: 0 }}>
+                        <Text fontSize='xl' fontWeight='bold' mt={4} ml={1} textAlign='center'>Actions</Text>
+                        <Wrap spacing={2} mt={4} justify='center'>
+                            {[
+                                { label: 'Test Connection', type: 'testConnection' },
+                                { label: 'Start JNDI Server', type: 'startJNDI' },
+                                { label: 'Stop JNDI Server', type: 'stopJNDI' },
+                                { label: 'Check JNDI Server', type: 'checkJNDI' },
+                                { label: 'Start Ncat Server', type: 'startNcat' },
+                                { label: 'Stop Ncat Server', type: 'stopNcat' },
+                                { label: 'Check Ncat Server', type: 'checkNcat' },
+                                { label: 'Send Payload', type: 'sendPayload' },
+                            ].map(({ label, type }) => (
+                                <Button isDisabled={state.loading ? true : false} key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : type === 'testConnection' ? 'green' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
+                                    {label}
+                                </Button>
+                            ))}
+                        </Wrap>
+                        <Wrap spacing={2} my={4} justify='center'>
+                            {[
+                                { label: 'One-click Exploit', type: 'exploit' },
+                                { label: 'Export Console Log', type: 'exportReport', onClick: () => exportReport(state.consolelog) },
+                                { label: 'Clear All', type: 'clearAll', onClick: () => setState((prevState) => ({ ...prevState, consolelog: '' })) }
+                            ].map(({ label, type, onClick }) => (
+                                <Button isDisabled={state.loading ? true : false} key={type} onClick={onClick} size={'sm'} colorScheme={type === 'exploit' ? 'teal' : type === 'exportReport' ? 'purple' : 'gray'} variant='outline' style={type === 'exploit' ? { boxShadow: "0 0 5px #0bf4f3, 0 0 5px #0bf4f3 inset", transition: "all 0.3s ease", } : {}} _hover={type === 'exploit' ? { boxShadow: "0 0 10px #0bf4f3, 0 0 20px #0bf4f3, 0 0 20px #fff inset", } : {}}>{label}</Button>
+                            ))}
+                        </Wrap>
+                    </Box>
+                </Flex>
+                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} mb={4}>
                     <Text fontSize='xl' fontWeight='bold' ml={1}>Target related</Text>
                     <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
                         <Input
@@ -192,35 +215,6 @@ const HomePage = () => {
                         />
                         <InputRightAddon>&#125;</InputRightAddon>
                     </InputGroup>
-                </Box>
-                <Box border='lg' borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} my={4}>
-                    <Text fontSize='xl' fontWeight='bold' mt={4} ml={1}>Actions</Text>
-                    <Wrap spacing={2} my={2}>
-                        {[
-                            { label: 'Test', type: 'test' },
-                            { label: 'Test Connection', type: 'testConnection' },
-                            { label: 'Start JNDI Server', type: 'startJNDI' },
-                            { label: 'Stop JNDI Server', type: 'stopJNDI' },
-                            { label: 'Check JNDI Server', type: 'checkJNDI' },
-                            { label: 'Start Ncat Server', type: 'startNcat' },
-                            { label: 'Stop Ncat Server', type: 'stopNcat' },
-                            { label: 'Check Ncat Server', type: 'checkNcat' },
-                            { label: 'Send Payload', type: 'sendPayload' },
-                        ].map(({ label, type }) => (
-                            <Button key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : type === 'testConnection' ? 'green' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
-                                {label}
-                            </Button>
-                        ))}
-                    </Wrap>
-                    <Wrap spacing={2} my={4}>
-                        {[
-                            { label: 'One-click Exploit', type: 'exploit' },
-                            { label: 'Export Console Log', type: 'exportReport', onClick: () => exportReport(state.consolelog) },
-                            { label: 'Clear All', type: 'clearAll', onClick: () => setState((prevState) => ({ ...prevState, consolelog: '' })) }
-                        ].map(({ label, type, onClick }) => (
-                            <Button key={type} onClick={onClick} size={'sm'} colorScheme={type === 'exploit' ? 'teal' : type === 'exportReport' ? 'purple' : 'gray'} variant='outline' style={type === 'exploit' ? { boxShadow: "0 0 5px #0bf4f3, 0 0 5px #0bf4f3 inset", transition: "all 0.3s ease", } : {}} _hover={type === 'exploit' ? { boxShadow: "0 0 10px #0bf4f3, 0 0 20px #0bf4f3, 0 0 20px #fff inset", } : {}}>{label}</Button>
-                        ))}
-                    </Wrap>
                 </Box>
             </Box>
             <Box ref={consoleBoxRef} as="footer" width="full" justifyContent="center" borderWidth='1px' borderRadius='lg' overflow='hidden' minW={"100%"} minH={"40vh"} maxH={"40vh"} overflowY={"auto"}>
