@@ -162,7 +162,7 @@ const HomePage = () => {
                         </InputRightElement>
                     </InputGroup>
                     <InputGroup size='md' mt={4} fontFamily={'JetBrains Mono'}>
-                        <InputLeftAddon>nc -l 1304 &gt; </InputLeftAddon>
+                        <InputLeftAddon>nc -l -p 1304 &gt; </InputLeftAddon>
                         <Input
                             pr='4.5rem'
                             placeholder='Filename'
