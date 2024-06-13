@@ -1,3 +1,5 @@
+.DS_Store
+
 frontend/.next
 frontend/node_modules
-.DS_Store
+frontend/*.log
