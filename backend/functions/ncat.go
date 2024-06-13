@@ -27,7 +27,8 @@ func StartNcat(host string, port int, filename string) {
 	}()
 
 	if filename != "" {
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("nc -l -p %d > %s", port, filename))
+		// cmd := exec.Command("sh", "-c", fmt.Sprintf("nc -l -p %d > %s", port, filename))
+		cmd := exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename)
 		err = cmd.Start()
 		if err != nil {
 			ncatStatus <- "Error starting ncat command: " + err.Error()
