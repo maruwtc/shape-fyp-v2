@@ -97,10 +97,6 @@ func main() {
 	})
 	router.GET("/stopncat", func(c *gin.Context) {
 		port := c.DefaultQuery("port", "1304")
-		// status := functions.StopNcat(port)
-		// c.JSON(200, gin.H{
-		// 	"message": status,
-		// })
 		status := functions.StopNcat(port)
 		c.JSON(200, gin.H{
 			"message": status,

@@ -57,19 +57,13 @@ func handleConnection(conn net.Conn) {
 
 func StopNcat(port string) string {
 	if listener != nil {
-		// err := listener.Close()
-		// if err != nil {
-		// 	return "Error closing listener: " + err.Error()
-		// }
-		// listener = nil
-		// return "Ncat server stopped"
 		if os := runtime.GOOS; os == "windows" {
-			cmd := exec.Command("taskkill", "/F", "/IM", "ncat.exe")
-			err := cmd.Run()
+			err := listener.Close()
 			if err != nil {
-				return "Error stopping ncat command: " + err.Error()
+				return "Error closing listener: " + err.Error()
 			}
-			return "Ncat server stopped by command: " + cmd.String()
+			listener = nil
+			return "Ncat server stopped"
 		} else if os == "linux" {
 			cmd := exec.Command("pkill", "-k", port)
 			err := cmd.Run()
@@ -85,8 +79,29 @@ func StopNcat(port string) string {
 func CheckNcat() string {
 	if listener != nil {
 		return "Ncat server is running at " + listener.Addr().String()
+	} else if os := runtime.GOOS; os == "windows" {
+		cmd := exec.Command("netstat", "-ano", "|", "findstr", "1304")
+		err := cmd.Run()
+		if err != nil {
+			if err.Error() == "exit status 1" {
+				return "Ncat server is not running"
+			}
+			return "Error checking ncat command: " + err.Error()
+		}
+		return "Ncat server is running by command: " + cmd.String()
+	} else if os == "linux" {
+		cmd := exec.Command("netstat", "-ano", "|", "grep", "1304")
+		err := cmd.Run()
+		if err != nil {
+			if err.Error() == "exit status 1" {
+				return "Ncat server is not running"
+			}
+			return "Error checking ncat command: " + err.Error()
+		}
+		return "Ncat server is running by command: " + cmd.String()
+	} else {
+		return "Ncat server is not running"
 	}
-	return "Ncat server is not running"
 }
 
 func GetNcatStatus() string {
