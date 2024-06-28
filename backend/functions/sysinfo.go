@@ -6,6 +6,8 @@ import (
 	"runtime"
 
 	externalip "github.com/glendc/go-external-ip"
+	. "github.com/klauspost/cpuid/v2"
+	"github.com/pbnjay/memory"
 )
 
 func GetIntIP() (net.IP, error) {
@@ -67,4 +69,11 @@ func TestTargetConnection(targetip string) (string, error) {
 	}
 	conn.Close()
 	return "Target is reachable", nil
+}
+
+func GetOSInfo() (string, any, string) {
+	cpu := CPU.BrandName
+	memory := memory.TotalMemory() / 1024 / 1024 / 1024
+	os := runtime.GOOS
+	return cpu, memory, os
 }

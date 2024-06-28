@@ -26,7 +26,6 @@ func StartNcat(host string, port int, filename string) {
 	defer func() {
 		listener = nil
 	}()
-
 	if filename != "" {
 		// cmd := exec.Command("sh", "-c", fmt.Sprintf("nc -l -p %d > %s", port, filename))
 		cmd := exec.Command("nc", "-l", "-p", fmt.Sprintf("%d", port), ">", filename)
@@ -57,21 +56,12 @@ func handleConnection(conn net.Conn) {
 
 func StopNcat(port string) string {
 	if listener != nil {
-		if os := runtime.GOOS; os == "windows" {
-			err := listener.Close()
-			if err != nil {
-				return "Error closing listener: " + err.Error()
-			}
-			listener = nil
-			return "Ncat server stopped"
-		} else if os == "linux" {
-			cmd := exec.Command("pkill", "-k", port)
-			err := cmd.Run()
-			if err != nil {
-				return "Error stopping ncat command: " + err.Error()
-			}
-			return "Ncat server stopped by command: " + cmd.String()
+		err := listener.Close()
+		if err != nil {
+			return "Error closing listener: " + err.Error()
 		}
+		listener = nil
+		return "Ncat server stopped"
 	}
 	return "Ncat server is not running"
 }

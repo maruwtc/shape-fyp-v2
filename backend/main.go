@@ -57,6 +57,14 @@ func main() {
 			})
 		}
 	})
+	router.GET("/getsysinfo", func(c *gin.Context) {
+		cpu, memory, os := functions.GetOSInfo()
+		c.JSON(200, gin.H{
+			"cpu":    cpu,
+			"memory": memory,
+			"os":     os,
+		})
+	})
 	router.GET("/testconnection", func(c *gin.Context) {
 		targetip := c.Query("targetip")
 		if targetip == "" {
