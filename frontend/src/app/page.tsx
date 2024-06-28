@@ -179,7 +179,10 @@ const HomePage = () => {
                 break;
             case 'createPDF':
                 const pdfResult = await createPDF(data);
-                newConsoleLog += pdfResult.error ? pdfResult.error : pdfResult.message;
+                newConsoleLog += pdfResult.error ? pdfResult.error : "Report exported successfully. Redirecting to download...";
+                setTimeout(() => {
+                    setState((prevState) => ({ ...prevState, loading: false }));
+                }, 5000);
                 break;
             default:
                 newConsoleLog += 'Unknown operation';
