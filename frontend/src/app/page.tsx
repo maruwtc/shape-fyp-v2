@@ -7,16 +7,30 @@ import {
     Divider,
     Input,
     InputGroup,
-    InputRightElement,
     InputRightAddon,
     InputLeftAddon,
     Spinner,
     useColorMode,
     Flex,
+    useDisclosure,
+    IconButton,
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalCloseButton,
+    ModalBody,
+    ModalFooter,
+    Table,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import "@fontsource/jetbrains-mono";
-import { exportReport } from "@/app/components/exportpdf";
+import { exportConsole } from "@/app/components/exportconsole";
 import {
     fetchJavaPath,
     fetchIP,
@@ -30,6 +44,35 @@ import {
     checkJNDI,
     checkNcat,
 } from "@/app/api/fetchdata";
+import { InfoOutlineIcon } from "@chakra-ui/icons";
+import { createPDF } from "@/app/api/fetchpdf";
+
+const data = {
+    "batchNumber": "736628",
+    "revision": "0",
+    "header_title": "Exploitation Report",
+    "os": "Ubuntu 24.04 LTS",
+    "hostname": "Target",
+    "ip": "192.168.78.100",
+    "mac": "ff:ff:ff:ff:ff:ff",
+    "cpu": "AMD",
+    "ram": "4GB",
+    "exploit": "CVE-2021-1234",
+    "exploit_type": "Remote Code Execution",
+    "exploit_description": "This is a remote code execution exploit that allows an attacker to execute arbitrary code on the target machine.",
+    "exploit_date": "2021-01-01",
+    "exploit_author": "John Doe",
+    "exploit_results": "The exploit was successful and the target machine was compromised.",
+    "root_directory": "/",
+    "home_directory": "/home/user",
+    "temp_directory": "/tmp",
+    "all_users": "user1, user2, user3",
+    "running_services": "apache2, ssh, mysql",
+    "stopped_services": "none",
+    "network_interfaces": "eth0, eth1",
+    "network_connections": "",
+    "open_ports": "22, 80, 443"
+}
 
 const HomePage = () => {
     const { colorMode } = useColorMode();
@@ -44,10 +87,11 @@ const HomePage = () => {
         command: '',
         loading: false,
         payload: '',
-        filename: ''
+        filename: '',
     });
     const consoleBoxRef = useRef<HTMLDivElement | null>(null);
     const ipRegex = /^(?:[0-9]{1,3}\.){3}(?!0|255)[0-9]{1,3}$/;
+    const { isOpen: isOpenInfo, onOpen: onOpenInfo, onClose: onCloseInfo } = useDisclosure();
 
     useEffect(() => {
         setState((prevState) => ({ ...prevState, loading: true }));
@@ -133,6 +177,10 @@ const HomePage = () => {
                 const checkNcatResult = await checkNcat();
                 newConsoleLog += checkNcatResult.error ? checkNcatResult.error : checkNcatResult.message;
                 break;
+            case 'createPDF':
+                const pdfResult = await createPDF(data);
+                newConsoleLog += pdfResult.error ? pdfResult.error : pdfResult.message;
+                break;
             default:
                 newConsoleLog += 'Unknown operation';
                 break;
@@ -141,7 +189,7 @@ const HomePage = () => {
     };
 
     return (
-        <Box>
+        <>
             <Box>
                 <Flex direction={{ base: 'column', md: 'row' }} my={4}>
                     <Box border={'lg'} borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} py={4} mr={4} w={{ base: '100%', md: '50%' }}>
@@ -166,16 +214,29 @@ const HomePage = () => {
                         </InputGroup>
                     </Box>
                     <Box border={'lg'} borderWidth='1px' borderRadius='lg' overflow='hidden' px={4} w={{ base: '100%', md: '50%' }} mt={{ base: 4, md: 0 }}>
-                        <Text fontSize='xl' fontWeight='bold' mt={4} ml={1} textAlign='center'>Actions</Text>
+                        <Flex alignItems="center" mt={4} ml={1} justifyContent='center'>
+                            <Text fontSize="xl" fontWeight="bold" textAlign="center" mr={2}>
+                                Actions
+                            </Text>
+                            <IconButton
+                                icon={<InfoOutlineIcon />}
+                                aria-label="Info"
+                                variant="ghost"
+                                isRound
+                                size="sm"
+                                _hover={{ bg: 'transparent' }}
+                                onClick={onOpenInfo}
+                            />
+                        </Flex>
                         <Wrap spacing={2} mt={4} justify='center'>
                             {[
                                 { label: 'Test Connection', type: 'testConnection' },
-                                { label: 'Start JNDI Server', type: 'startJNDI' },
-                                { label: 'Stop JNDI Server', type: 'stopJNDI' },
-                                { label: 'Check JNDI Server', type: 'checkJNDI' },
-                                { label: 'Start Ncat Server', type: 'startNcat' },
-                                { label: 'Stop Ncat Server', type: 'stopNcat' },
-                                { label: 'Check Ncat Server', type: 'checkNcat' },
+                                { label: 'Start JNDI', type: 'startJNDI' },
+                                { label: 'Stop JNDI', type: 'stopJNDI' },
+                                { label: 'Check JNDI', type: 'checkJNDI' },
+                                { label: 'Start Ncat', type: 'startNcat' },
+                                { label: 'Stop Ncat', type: 'stopNcat' },
+                                { label: 'Check Ncat', type: 'checkNcat' },
                                 { label: 'Send Payload', type: 'sendPayload' },
                             ].map(({ label, type }) => (
                                 <Button isDisabled={state.loading ? true : false} key={type} size={'sm'} colorScheme={type === 'sendPayload' ? 'blue' : type === 'stopJNDI' || type === 'stopNcat' ? 'red' : type === 'startJNDI' || type === 'startNcat' ? 'green' : type === 'exportReport' ? 'purple' : type === 'checkJNDI' || type === 'checkNcat' ? 'cyan' : type === 'testConnection' ? 'green' : 'gray'} variant='outline' onClick={() => handleInputButtonClick(type)}>
@@ -185,8 +246,16 @@ const HomePage = () => {
                         </Wrap>
                         <Wrap spacing={2} my={4} justify='center'>
                             {[
-                                { label: 'One-click Exploit', type: 'exploit' },
-                                { label: 'Export Console Log', type: 'exportReport', onClick: () => exportReport(state.consolelog) },
+                                {
+                                    label: 'One-click Exploit', type: 'exploit',
+                                    onClick: async () => {
+                                        await handleInputButtonClick('startJNDI');
+                                        await handleInputButtonClick('startNcat');
+                                        await handleInputButtonClick('sendPayload');
+                                    }
+                                },
+                                { label: 'Export Report', type: 'exportReport', onClick: () => handleInputButtonClick('createPDF') },
+                                { label: 'Export Console Log', type: 'exportReport', onClick: () => exportConsole(state.consolelog) },
                                 { label: 'Clear All', type: 'clearAll', onClick: () => setState((prevState) => ({ ...prevState, consolelog: '' })) }
                             ].map(({ label, type, onClick }) => (
                                 <Button isDisabled={state.loading ? true : false} key={type} onClick={onClick} size={'sm'} colorScheme={type === 'exploit' ? 'teal' : type === 'exportReport' ? 'purple' : 'gray'} variant='outline' style={type === 'exploit' ? { boxShadow: "0 0 5px #0bf4f3, 0 0 5px #0bf4f3 inset", transition: "all 0.3s ease", } : {}} _hover={type === 'exploit' ? { boxShadow: "0 0 10px #0bf4f3, 0 0 20px #0bf4f3, 0 0 20px #fff inset", } : {}}>{label}</Button>
@@ -242,7 +311,79 @@ const HomePage = () => {
                     ))}
                 </Box>
             </Box>
-        </Box>
+            <Modal isOpen={isOpenInfo} onClose={onCloseInfo} size={'xl'}>
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>Info</ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody>
+                        <Table size={'sm'} variant={'simple'}>
+                            <Thead>
+                                <Tr>
+                                    <Th>Action</Th>
+                                    <Th>Description</Th>
+                                </Tr>
+                            </Thead>
+                            <Tbody>
+                                <Tr>
+                                    <Td>Test Connection</Td>
+                                    <Td>Test connection to target IP address</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Start JNDI</Td>
+                                    <Td>Start JNDI server</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Stop JNDI</Td>
+                                    <Td>Stop JNDI server</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Check JNDI</Td>
+                                    <Td>Check JNDI server status</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Start Ncat</Td>
+                                    <Td>Start Ncat server</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Stop Ncat</Td>
+                                    <Td>Stop Ncat server</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Check Ncat</Td>
+                                    <Td>Check Ncat server status</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Send Payload</Td>
+                                    <Td>Send payload to target IP address</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>One-click Exploit</Td>
+                                    <Td>Execute all actions</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Export Report</Td>
+                                    <Td>Export report to file</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Export Console Log</Td>
+                                    <Td>Export console log to file</Td>
+                                </Tr>
+                                <Tr>
+                                    <Td>Clear All</Td>
+                                    <Td>Clear all console log</Td>
+                                </Tr>
+                            </Tbody>
+                        </Table>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button colorScheme="blue" mr={3} onClick={onCloseInfo}>
+                            Close
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+        </>
     );
 };
 

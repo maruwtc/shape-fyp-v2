@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 
-export const exportReport = (consolelog: any) => {
+export const exportConsole = (consolelog: any) => {
   const doc = new jsPDF();
   doc.setFont("JetBrains Mono");
   const lines: string[] = consolelog.split("\n"); // Explicitly specify the type as string[]

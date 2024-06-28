@@ -1,4 +1,4 @@
-import { config as config } from '~/config';
+import { config } from '~/config';
 import axios from 'axios';
 
 export const fetchJavaPath = async () => {
@@ -133,3 +133,4 @@ export const sendPayload = async (payload: string, targetip: string) => {
         return { message: null, error: error.message };
     }
 }
+
